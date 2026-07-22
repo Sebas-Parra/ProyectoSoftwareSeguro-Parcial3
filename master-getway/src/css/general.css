@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+body{
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    font-family: "Segoe UI", "Inter", Arial, Helvetica, sans-serif;
+
+}
+
+#toast-component {
+    width: 90% !important;
+}
+
+.toast-container {
+    width: 100%;
+}
+
+.components-login {
+    width: 100%;
+}
+
+.container-login-card {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 2rem 0rem;
+}
+
+.login-div{
+    justify-content: center;
+    align-items: center;
+    width: 90%;
+    color: black !important;
+}
+
+.img-logo{
+    width: 210px;
+    justify-content: center;    
+    align-items: center;
+    display: flex;
+    border-radius: 10%;
+}
+
+@media (max-width: 992px) {
+
+    .container-extractor{
+        display: block !important;
+    }
+
+    .card-extractor{
+        display: block !important;
+    }
+
+    .excel-div{
+        display: block !important;
+    }
+
+    .excel-div img{
+        display: block !important;
+        margin: 0 auto !important;
+    }
+}
+
+@font-face {
+  font-family: 'Create Display Light';
+  src: url(../font/CreatoDisplay-Light.otf);
+}
