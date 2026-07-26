@@ -64,7 +64,12 @@ def test_verificar_token_rejects_expired_token():
 def test_verificar_token_rejects_signature_tampering():
     access_token, _ = run(jwt_service.generar_tokens(1, "administrador", "administrador", role_id=1))
     header, payload_part, signature = access_token.split(".")
-    flipped_signature = signature[:-1] + ("A" if signature[-1] != "A" else "B")
+    # Se altera un caracter del MEDIO de la firma (no el ultimo): en base64url
+    # el ultimo caracter a veces solo codifica bits de relleno, por lo que
+    # cambiarlo no siempre altera el valor real de la firma (test inestable).
+    mid = len(signature) // 2
+    replacement = "A" if signature[mid] != "A" else "B"
+    flipped_signature = signature[:mid] + replacement + signature[mid + 1:]
     tampered_token = f"{header}.{payload_part}.{flipped_signature}"
 
     payload, error = run(jwt_service.verificar_token(tampered_token, "access"))

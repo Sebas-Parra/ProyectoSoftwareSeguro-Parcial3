@@ -9,5 +9,6 @@ PyJWT
 slowapi
 polars
 pytest
+pytest-cov
 httpx
 cryptography

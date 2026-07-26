@@ -11,4 +11,5 @@ slowapi
 bcrypt
 cryptography
 pytest
+pytest-cov
 httpx
