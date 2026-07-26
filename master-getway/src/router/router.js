@@ -24,39 +24,12 @@ const routes = [
         path: '/home',
         name: 'home',
         component: () => import('@/pages/HomePage.vue'),
-        meta: { requiresAuth: true },
-        children: [
-            {
-                path: 'admin/menus',
-                name: 'admin-menus',
-                component: () => import('@/pages/MenuPage.vue'),
-                meta: { requiresAuth: true }
-            },
-            {
-                path: 'admin/roles',
-                name: 'admin-roles',
-                component: () => import('@/pages/RolePage.vue'),
-                meta: { requiresAuth: true }
-            },
-            {
-                path: 'admin/users',
-                name: 'admin-users',
-                component: () => import('@/pages/UserPage.vue'),
-                meta: { requiresAuth: true }
-            },
-            {
-                path: 'admin/modules',
-                name: 'admin-modules',
-                component: () => import('@/pages/ModulePage.vue'),
-                meta: { requiresAuth: true }
-            },
-            {
-                path: 'sale',
-                name: 'sale',
-                component: () => import('@/pages/SalePage.vue'),
-                meta: { requiresAuth: true }
-            }
-        ]
+        meta: { requiresAuth: true }
+        // Las rutas hijas (admin/menus, admin/roles, sales, etc.) NO se
+        // declaran aqui: se registran dinamicamente en tiempo de ejecucion
+        // a partir del arbol de menu que devuelve el backend segun el rol
+        // seleccionado. Ver src/router/viewRegistry.js y
+        // src/helpers/useMenu.js (registerRoutesFromMenu).
     },
 
 ];
