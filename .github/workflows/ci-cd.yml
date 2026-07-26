@@ -1,0 +1,219 @@
+# Pipeline CI/CD - Anexo "Requisitos de Infraestructura, CI/CD y DevSecOps"
+# (PROY_PARCIAL_III_DesSeguro)
+#
+# Corre en cada push/merge a `main` y ejecuta, en orden, las 4 fases pedidas:
+#   1. Build y Pruebas Unitarias
+#   2. Analisis Estatico Tradicional (SonarCloud) - exige Quality Gate = OK
+#   3. Analisis SAST Avanzado (modelo ML sobre archivos modificados)
+#   4. Despliegue Automatico (Railway), solo si 2 y 3 pasaron
+#
+# Secrets requeridos en Settings > Secrets and variables > Actions:
+#   TELEGRAM_BOT_TOKEN   - token del bot creado con @BotFather
+#   TELEGRAM_CHAT_ID     - id del grupo/canal de Telegram del equipo
+#   SONAR_TOKEN          - token del proyecto en https://sonarcloud.io
+#   HF_API_TOKEN         - token gratuito de https://huggingface.co/settings/tokens
+#                          (opcional: si falta, la fase 3 se reporta como
+#                          "sin analizar" y NO bloquea el pipeline)
+#   RAILWAY_TOKEN        - project token de Railway (Project Settings > Tokens)
+#
+# Mientras no existan las cuentas de SonarCloud/Railway, este archivo queda
+# igual de valido: las fases fallaran solo cuando ejecuten, con un mensaje
+# claro sobre que secret falta.
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  notify-start:
+    name: Notificar inicio
+    runs-on: ubuntu-latest
+    steps:
+      - name: Telegram - inicio del pipeline
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d parse_mode="Markdown" \
+            -d text="🚀 *Pipeline iniciado* en \`main\` - commit \`${{ github.sha }}\` por ${{ github.actor }}" || true
+
+  build-test:
+    name: "Fase 1: Build y Pruebas Unitarias"
+    needs: notify-start
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias - auth-service
+        working-directory: auth-service
+        run: pip install -r requirements.txt
+
+      - name: Pruebas unitarias - auth-service
+        working-directory: auth-service
+        run: python -m pytest tests/ -v
+
+      - name: Instalar dependencias - sale_service
+        working-directory: sale_service
+        run: pip install -r requirements.txt
+
+      - name: Pruebas unitarias - sale_service
+        working-directory: sale_service
+        run: python -m pytest tests/ -v
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Habilitar pnpm
+        run: corepack enable && corepack prepare pnpm@10.33.2 --activate
+
+      - name: Instalar dependencias - frontend
+        working-directory: master-getway
+        run: pnpm install --frozen-lockfile
+
+      - name: Build - frontend
+        working-directory: master-getway
+        run: pnpm build
+
+      - name: Telegram - fallo en build/tests
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="❌ Build o pruebas unitarias fallaron en ${{ github.sha }}. Pipeline detenido." || true
+
+  sonarcloud:
+    name: "Fase 2: Analisis Estatico (SonarCloud)"
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Esperar Quality Gate
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Telegram - Quality Gate OK
+        if: success()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="✅ SonarCloud Quality Gate: PASSED (${{ github.sha }})" || true
+
+      - name: Telegram - Quality Gate FAILED
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="❌ SonarCloud rechazo el codigo (Quality Gate FAILED). Pipeline detenido." || true
+
+  ml-sast:
+    name: "Fase 3: SAST Avanzado (Modelo ML)"
+    needs: sonarcloud
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Analisis de mineria de datos sobre archivos modificados
+        env:
+          HF_API_TOKEN: ${{ secrets.HF_API_TOKEN }}
+          BASE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: python scripts/ml_sast_scan.py
+
+      - name: Telegram - alerta critica del modelo ML
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="🚨 ALERTA: el modelo de mineria de datos detecto un patron sospechoso de vulnerabilidad en ${{ github.sha }}. Pipeline detenido." || true
+
+  deploy:
+    name: "Fase 4: Despliegue Automatico (Railway)"
+    needs: ml-sast
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Telegram - iniciando despliegue
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="🛡️ Seguridad validada. Desplegando ${{ github.sha }} a Railway..." || true
+
+      - name: Instalar Railway CLI
+        run: npm install -g @railway/cli
+
+      # TODO (una vez creada la cuenta/proyecto en Railway):
+      #  1. railway login  (una sola vez, local) y `railway link` al proyecto.
+      #  2. Crear 3 servicios en el proyecto de Railway con estos nombres
+      #     exactos (o ajustar los --service de abajo): auth-service,
+      #     sale-service, master-getway.
+      #  3. Guardar el "Project Token" del proyecto como secret RAILWAY_TOKEN.
+      #  4. Configurar en cada servicio de Railway las mismas variables que
+      #     tienen los .env locales (DATABASE_URL, PRIVATE_KEY/PUBLIC_KEY o su
+      #     contenido, REDIS_HOST, etc.) - nunca deben ir hardcodeadas aqui.
+      - name: Deploy auth-service
+        working-directory: auth-service
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service auth-service --detach
+
+      - name: Deploy sale_service
+        working-directory: sale_service
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service sale-service --detach
+
+      - name: Deploy frontend
+        working-directory: master-getway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service master-getway --detach
+
+      - name: Telegram - despliegue exitoso
+        if: success()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="🎉 Despliegue en produccion exitoso (${{ github.sha }})." || true
+
+      - name: Telegram - despliegue fallido
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="❌ Fallo el despliegue a Railway (${{ github.sha }})." || true

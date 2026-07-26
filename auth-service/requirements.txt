@@ -8,3 +8,7 @@ pydantic
 PyJWT
 redis
 slowapi
+bcrypt
+cryptography
+pytest
+httpx
