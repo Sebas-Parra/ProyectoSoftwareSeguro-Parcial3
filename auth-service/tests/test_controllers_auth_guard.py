@@ -10,7 +10,7 @@ import pytest
 from fastapi import HTTPException
 
 from tests.db_helpers import run
-from controllers import auth_controller, user_controller, role_controller, module_controller, menu_controller
+from controllers import auth_controller, user_controller, role_controller, module_controller, menu_controller, internal_controller
 
 
 def _bad_credentials():
@@ -47,6 +47,8 @@ CASES = [
     ("menu.delete", lambda: menu_controller.delete_menu_controller(None, 1, _bad_credentials())),
     ("menu.assign_to_role", lambda: menu_controller.insert_role_menu_controller(None, 1, 1, _bad_credentials())),
     ("menu.get_all", lambda: menu_controller.get_all_menus_controller(None, _bad_credentials())),
+
+    ("internal.validate_token", lambda: internal_controller.validate_token_controller(_bad_credentials())),
 ]
 
 
