@@ -47,3 +47,37 @@ def test_assign_module_to_role_is_idempotent():
             assert first.module_id == second.module_id
 
     run(scenario())
+
+
+def test_get_module_names_by_role_returns_only_assigned_active_modules():
+    async def scenario():
+        async with DbCase() as db:
+            role = await role_repository.insert_role(db, "vendedor", "desc", "pi-user", None, None)
+            ventas = await module_repository.insert_module(db, "Ventas", "pi-cart", "desc", None, None)
+            rrhh = await module_repository.insert_module(db, "RRHH", "pi-users", "desc", None, None)
+
+            await module_repository.assign_module_to_role(db, role.id, ventas.id, None, None)
+
+            names = await module_repository.get_module_names_by_role(db, role.id)
+            assert names == ["Ventas"]
+
+            # Un modulo no asignado a este rol no debe aparecer
+            other_role = await role_repository.insert_role(db, "rrhh_manager", "desc", "pi-user", None, None)
+            await module_repository.assign_module_to_role(db, other_role.id, rrhh.id, None, None)
+            assert await module_repository.get_module_names_by_role(db, role.id) == ["Ventas"]
+
+    run(scenario())
+
+
+def test_get_module_names_by_role_excludes_inactive_modules():
+    async def scenario():
+        async with DbCase() as db:
+            role = await role_repository.insert_role(db, "vendedor", "desc", "pi-user", None, None)
+            ventas = await module_repository.insert_module(db, "Ventas", "pi-cart", "desc", None, None)
+            await module_repository.assign_module_to_role(db, role.id, ventas.id, None, None)
+
+            await module_repository.delete_module(db, ventas.id, updated_by=1)
+
+            assert await module_repository.get_module_names_by_role(db, role.id) == []
+
+    run(scenario())

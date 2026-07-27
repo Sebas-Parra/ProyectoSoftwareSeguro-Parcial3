@@ -10,6 +10,19 @@ async def get_all_modules(db: AsyncSession):
     return result.scalars().all()
 
 
+async def get_module_names_by_role(db: AsyncSession, role_id: int) -> list:
+    """Nombres de los modulos ACTIVOS asignados a un rol. Se embeben en el
+    JWT al seleccionar el rol para que los microservicios hijos (ej.
+    sale_service para el modulo "Ventas") puedan autorizar sin consultar
+    al Master en cada request."""
+    result = await db.execute(
+        select(Module.name)
+        .join(RoleModule, RoleModule.module_id == Module.id)
+        .filter(RoleModule.role_id == role_id, Module.status == True)
+    )
+    return [name for (name,) in result.all()]
+
+
 async def insert_module(db: AsyncSession, name: str, icon: str, description: str, created_by: int, updated_by: int):
     new_module = Module(
         name=name,

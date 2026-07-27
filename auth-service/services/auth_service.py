@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from repositories import user_repository
+from repositories import user_repository, module_repository
 from services.jwt_service import generar_tokens, generar_temptoken
 import bcrypt
 
@@ -21,7 +21,12 @@ async def select_role_service(db: Session, user_id: int, role_id: int):
     if not any(role['id'] == role_id for role in roles):
         return None
 
-    return await generar_tokens(user.id, user.username, next(role['name'] for role in roles if role['id'] == role_id), role_id)
+    modules = await module_repository.get_module_names_by_role(db, role_id)
+
+    return await generar_tokens(
+        user.id, user.username, next(role['name'] for role in roles if role['id'] == role_id), role_id,
+        modules=modules,
+    )
 
 
 def _verify_password(password: str, hashed_password: str) -> bool:

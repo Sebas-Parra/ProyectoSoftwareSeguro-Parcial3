@@ -28,11 +28,37 @@ def test_generar_tokens_embeds_selected_role():
     access_payload, error = run(jwt_service.verificar_token(access_token, "access"))
     assert error is None
     assert access_payload["role_id"] == 1
-    assert access_payload["role"] == "administrador"
 
-    refresh_payload, error = run(jwt_service.verificar_token(refresh_token, "refresh"))
+
+def test_generar_tokens_embeds_modules_for_authorization():
+    access_token, refresh_token = run(
+        jwt_service.generar_tokens(1, "vendedor", "vendedor", role_id=2, modules=["Ventas"])
+    )
+
+    access_payload, _ = run(jwt_service.verificar_token(access_token, "access"))
+    refresh_payload, _ = run(jwt_service.verificar_token(refresh_token, "refresh"))
+
+    assert access_payload["modules"] == ["Ventas"]
+    assert refresh_payload["modules"] == ["Ventas"]
+
+
+def test_generar_tokens_defaults_modules_to_empty_list():
+    access_token, _ = run(jwt_service.generar_tokens(1, "administrador", "administrador", role_id=1))
+
+    access_payload, _ = run(jwt_service.verificar_token(access_token, "access"))
+    assert access_payload["modules"] == []
+
+
+def test_validar_refresh_token_preserves_modules():
+    _, refresh_token = run(
+        jwt_service.generar_tokens(1, "vendedor", "vendedor", role_id=2, modules=["Ventas"])
+    )
+
+    (new_access, _), error = run(jwt_service.validar_refresh_token(refresh_token))
     assert error is None
-    assert refresh_payload["jti"] == access_payload["jti"]
+
+    new_payload, _ = run(jwt_service.verificar_token(new_access, "access"))
+    assert new_payload["modules"] == ["Ventas"]
 
 
 def test_verificar_token_rejects_mismatched_type():

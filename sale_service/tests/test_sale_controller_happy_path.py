@@ -8,10 +8,11 @@ from controllers import sale_controller
 from dtos.sale_dto import SaleDTO
 
 
-def _valid_token(master_private_key, user_id=1):
+def _valid_token(master_private_key, user_id=1, modules=("Ventas",)):
     now = int(time.time())
     payload = {
         "sub": str(user_id), "username": "vendedor", "role": "vendedor", "role_id": 5,
+        "modules": list(modules),
         "type": "access", "exp": now + 900, "iat": now,
     }
     token = pyjwt.encode(payload, master_private_key, algorithm="RS256")
@@ -54,5 +55,54 @@ def test_update_sale_controller_returns_404_for_missing_sale(master_private_key)
                     db, 9999, SaleDTO(name="x", description="y", total=1.0, status=True), creds
                 )
             assert exc_info.value.status_code == 404
+
+    run(scenario())
+
+
+def test_role_without_ventas_module_gets_403(master_private_key):
+    """Zero Trust (diagrama 8.3): un token valido pero de un rol SIN el
+    modulo 'Ventas' debe ser rechazado con 403, no solo aceptado por tener
+    firma valida."""
+    from fastapi import HTTPException
+    import pytest
+
+    async def scenario():
+        async with DbCase() as db:
+            creds = _valid_token(master_private_key, modules=["RRHH"])
+
+            with pytest.raises(HTTPException) as exc_info:
+                await sale_controller.get_all_sales_controller(db, 1, 10, creds)
+            assert exc_info.value.status_code == 403
+
+            with pytest.raises(HTTPException) as exc_info:
+                await sale_controller.create_sale_controller(
+                    db, SaleDTO(name="x", description="y", total=1.0, status=True), creds
+                )
+            assert exc_info.value.status_code == 403
+
+    run(scenario())
+
+
+def test_token_without_modules_claim_gets_403(master_private_key):
+    """Compatibilidad hacia atras: un token viejo (emitido antes de este
+    cambio) sin el claim 'modules' tampoco debe poder usar Ventas."""
+    from fastapi import HTTPException
+    import pytest
+
+    now = int(time.time())
+    payload = {
+        "sub": "1", "username": "vendedor", "role": "vendedor", "role_id": 5,
+        "type": "access", "exp": now + 900, "iat": now,
+    }
+    token = pyjwt.encode(payload, master_private_key, algorithm="RS256")
+    creds = types.SimpleNamespace(credentials=token)
+
+    async def scenario():
+        async with DbCase() as db:
+            with pytest.raises(HTTPException) as exc_info:
+                await sale_controller.get_all_sales_controller(db, 1, 10, creds)
+            assert exc_info.value.status_code == 403
+
+    run(scenario())
 
     run(scenario())
