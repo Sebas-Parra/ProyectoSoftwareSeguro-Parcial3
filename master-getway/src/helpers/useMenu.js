@@ -103,3 +103,7 @@ export function useMenu() {
     };
 
 }
+
+// Exportadas ademas a nivel de modulo (sin pasar por el composable) para
+// poder probarlas de forma aislada.
+export { registerRoutesFromMenu, clearDynamicRoutes };

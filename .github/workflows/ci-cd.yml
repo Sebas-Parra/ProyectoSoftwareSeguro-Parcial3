@@ -80,15 +80,6 @@ jobs:
           python scripts/fix_coverage_paths.py auth-service/coverage.xml auth-service
           python scripts/fix_coverage_paths.py sale_service/coverage.xml sale_service
 
-      - name: Subir reportes de cobertura (para SonarCloud)
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-reports
-          path: |
-            auth-service/coverage.xml
-            sale_service/coverage.xml
-          retention-days: 1
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -101,9 +92,23 @@ jobs:
         working-directory: master-getway
         run: pnpm install --frozen-lockfile
 
+      - name: Pruebas unitarias - frontend
+        working-directory: master-getway
+        run: pnpm test
+
       - name: Build - frontend
         working-directory: master-getway
         run: pnpm build
+
+      - name: Subir reportes de cobertura (para SonarCloud)
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            auth-service/coverage.xml
+            sale_service/coverage.xml
+            master-getway/coverage/lcov.info
+          retention-days: 1
 
       - name: Telegram - fallo en build/tests
         if: failure()

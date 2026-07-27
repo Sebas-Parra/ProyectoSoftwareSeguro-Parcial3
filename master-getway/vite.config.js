@@ -11,4 +11,14 @@ export default defineConfig({
     }
   },
   plugins: [vue(), tailwindcss()],
+  test: {
+    environment: "jsdom",
+    globals: true,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "lcov"],
+      reportsDirectory: "./coverage",
+      include: ["src/**/*.{js,vue}"],
+    },
+  },
 })
