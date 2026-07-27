@@ -14,6 +14,21 @@ def _sign(payload, key):
     return pyjwt.encode(payload, key, algorithm="RS256")
 
 
+def test_load_key_accepts_raw_pem_content_directly():
+    """En Railway sale_service no comparte filesystem con auth-service, asi
+    que la variable de entorno lleva el contenido PEM completo."""
+    raw_pem = jwt_service.PUBLIC_KEY
+    loaded = jwt_service._load_key(raw_pem)
+    assert loaded == raw_pem.replace("\\n", "\n")
+
+
+def test_load_key_fixes_escaped_newlines_in_raw_content():
+    fake_pem_with_escaped_newlines = "-----BEGIN PUBLIC KEY-----\\nABC123\\n-----END PUBLIC KEY-----\\n"
+    loaded = jwt_service._load_key(fake_pem_with_escaped_newlines)
+    assert "\\n" not in loaded
+    assert "\n" in loaded
+
+
 def test_verificar_token_accepts_token_signed_by_master(master_private_key):
     now = int(time.time())
     payload = {

@@ -10,6 +10,27 @@ def run(coro):
     return asyncio.run(coro)
 
 
+def test_load_key_reads_from_file_path():
+    import os
+    key = jwt_service._load_key(os.getenv("PRIVATE_KEY"))
+    assert key.strip().startswith("-----BEGIN")
+
+
+def test_load_key_accepts_raw_pem_content_directly():
+    """En Railway (sin filesystem compartido entre servicios) la variable
+    de entorno lleva el contenido PEM completo, no una ruta a archivo."""
+    raw_pem = jwt_service.PUBLIC_KEY  # ya sabemos que es un PEM valido
+    loaded = jwt_service._load_key(raw_pem)
+    assert loaded == raw_pem.replace("\\n", "\n")
+
+
+def test_load_key_fixes_escaped_newlines_in_raw_content():
+    fake_pem_with_escaped_newlines = "-----BEGIN PUBLIC KEY-----\\nABC123\\n-----END PUBLIC KEY-----\\n"
+    loaded = jwt_service._load_key(fake_pem_with_escaped_newlines)
+    assert "\\n" not in loaded
+    assert "\n" in loaded
+
+
 def test_temptoken_roundtrip():
     token = run(jwt_service.generar_temptoken(1, "administrador"))
     payload, error = run(jwt_service.verificar_token(token, "access"))
