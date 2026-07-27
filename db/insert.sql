@@ -32,10 +32,10 @@ INSERT INTO role_modules (role_id, module_id, status, created_by, updated_by)
 VALUES (1, 1, true, 1, 1),
        (1, 2, true, 1, 1);
 
-INSERT INTO role_menus (role_id, menu_id) VALUES 
-(1, 1), -- Menú raíz: Administración
-(1, 2), -- Menú hijo: Usuarios
-(1, 3), -- Menú hijo: Roles
-(1, 4), -- Menú hijo: Módulos
-(1, 5), -- Menú hijo: Menús
-(1, 6); -- Menú hijo: Ventas
+INSERT INTO role_menus (role_id, menu_id, status, created_by, updated_by) VALUES
+(1, 1, true, 1, 1), -- Menú raíz: Administración
+(1, 2, true, 1, 1), -- Menú hijo: Usuarios
+(1, 3, true, 1, 1), -- Menú hijo: Roles
+(1, 4, true, 1, 1), -- Menú hijo: Módulos
+(1, 5, true, 1, 1), -- Menú hijo: Menús
+(1, 6, true, 1, 1); -- Menú hijo: Ventas

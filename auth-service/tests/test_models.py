@@ -43,3 +43,13 @@ def test_role_menu_pivot_instantiation():
     pivot = RoleMenu(role_id=1, menu_id=6)
     assert pivot.role_id == 1
     assert pivot.menu_id == 6
+
+
+def test_role_menu_pivot_has_audit_fields():
+    """role_menus no debe ser una 'tabla tonta': igual que user_roles y
+    role_modules, debe tener created_by/updated_by (y status, igual que
+    role_modules) para saber cuando y quien otorgo el permiso."""
+    pivot = RoleMenu(role_id=1, menu_id=6, created_by=1, updated_by=1)
+    assert pivot.created_by == 1
+    assert pivot.updated_by == 1
+    assert hasattr(pivot, "status")

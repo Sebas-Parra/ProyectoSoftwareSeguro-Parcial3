@@ -87,6 +87,41 @@ def test_cte_excludes_inactive_menus():
     run(scenario())
 
 
+def test_insert_role_menu_sets_audit_fields():
+    async def scenario():
+        async with DbCase() as db:
+            role = await role_repository.insert_role(db, "vendedor", "desc", "pi-user", None, None)
+            menu = await menu_repository.create(db, {
+                "nombre": "Ventas", "url": "/home/sales", "modulo_id": 1, "parent_id": None,
+                "created_by": 1, "updated_by": 1,
+            })
+
+            relation = await menu_repository.insert_role_menu(db, role.id, menu.id, created_by=1, updated_by=1)
+
+            assert relation.created_by == 1
+            assert relation.updated_by == 1
+            assert relation.status is True
+
+    run(scenario())
+
+
+def test_insert_role_menu_is_idempotent_and_keeps_original_audit():
+    async def scenario():
+        async with DbCase() as db:
+            role = await role_repository.insert_role(db, "vendedor", "desc", "pi-user", None, None)
+            menu = await menu_repository.create(db, {
+                "nombre": "Ventas", "url": "/home/sales", "modulo_id": 1, "parent_id": None,
+                "created_by": 1, "updated_by": 1,
+            })
+
+            first = await menu_repository.insert_role_menu(db, role.id, menu.id, created_by=1, updated_by=1)
+            second = await menu_repository.insert_role_menu(db, role.id, menu.id, created_by=2, updated_by=2)
+
+            assert first.created_by == second.created_by == 1
+
+    run(scenario())
+
+
 def test_is_circular_reference_detects_self_and_descendant():
     async def scenario():
         async with DbCase() as db:

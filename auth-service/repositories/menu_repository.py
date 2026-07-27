@@ -6,7 +6,7 @@ from models.menu_model import Menu
 from models.role_menu_model import RoleMenu
 from sqlalchemy.orm import aliased
 
-async def insert_role_menu(db: AsyncSession, role_id: int, menu_id: int):
+async def insert_role_menu(db: AsyncSession, role_id: int, menu_id: int, created_by: int = None, updated_by: int = None):
     # Verificar si la relación ya existe
     result = await db.execute(
         select(RoleMenu).filter(
@@ -15,16 +15,16 @@ async def insert_role_menu(db: AsyncSession, role_id: int, menu_id: int):
         )
     )
     existing_relation = result.scalars().first()
-    
+
     if existing_relation:
         return existing_relation  # Retornar la relación existente si ya existe
 
-    # Crear una nueva relación
-    new_relation = RoleMenu(role_id=role_id, menu_id=menu_id)
+    # Crear una nueva relación (con auditoria, igual que user_roles/role_modules)
+    new_relation = RoleMenu(role_id=role_id, menu_id=menu_id, created_by=created_by, updated_by=updated_by)
     db.add(new_relation)
     await db.commit()
     await db.refresh(new_relation)
-    
+
     return new_relation
 
 async def get_active_menus_flat_by_role(db: AsyncSession, role_id: int) -> List[Menu]:
