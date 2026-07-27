@@ -13,6 +13,20 @@ def test_insert_and_list_modules():
     run(scenario())
 
 
+def test_get_all_modules_excludes_soft_deleted():
+    async def scenario():
+        async with DbCase() as db:
+            activo = await module_repository.insert_module(db, "Ventas", "pi-cart", "desc", None, None)
+            inactivo = await module_repository.insert_module(db, "Obsoleto", "pi-times", "desc", None, None)
+            await module_repository.delete_module(db, inactivo.id, updated_by=1)
+
+            modules = await module_repository.get_all_modules(db)
+
+            assert [m.id for m in modules] == [activo.id]
+
+    run(scenario())
+
+
 def test_update_module():
     async def scenario():
         async with DbCase() as db:

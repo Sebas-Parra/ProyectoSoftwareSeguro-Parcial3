@@ -13,6 +13,20 @@ def test_insert_and_list_roles():
     run(scenario())
 
 
+def test_get_all_roles_excludes_soft_deleted():
+    async def scenario():
+        async with DbCase() as db:
+            activo = await role_repository.insert_role(db, "vendedor", "desc", "pi-user", None, None)
+            inactivo = await role_repository.insert_role(db, "obsoleto", "desc", "pi-user", None, None)
+            await role_repository.delete_role(db, inactivo.id, updated_by=1)
+
+            roles = await role_repository.get_all_roles(db)
+
+            assert [r.id for r in roles] == [activo.id]
+
+    run(scenario())
+
+
 def test_update_role():
     async def scenario():
         async with DbCase() as db:

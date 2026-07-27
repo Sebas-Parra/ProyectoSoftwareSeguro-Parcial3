@@ -6,12 +6,12 @@ from models.user_model import User
 async def get_all_users(db: AsyncSession, page: int = 1, limit: int = 10):
     offset = (page - 1) * limit
     
-    # Contar total
-    count_stmt = select(func.count()).select_from(User)
+    # Contar total (solo activos)
+    count_stmt = select(func.count()).select_from(User).filter(User.status == True)
     total = await db.scalar(count_stmt)
-    
-    # Obtener usuarios
-    stmt = select(User).offset(offset).limit(limit)
+
+    # Obtener usuarios (solo activos)
+    stmt = select(User).filter(User.status == True).offset(offset).limit(limit)
     result = await db.execute(stmt)
     users = result.scalars().all()
 

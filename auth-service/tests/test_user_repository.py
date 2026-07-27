@@ -82,6 +82,21 @@ def test_get_all_users_paginates_and_hides_password():
     run(scenario())
 
 
+def test_get_all_users_excludes_soft_deleted():
+    async def scenario():
+        async with DbCase() as db:
+            activo = await user_repository.insert_user(db, "activo", "hash", None, None)
+            inactivo = await user_repository.insert_user(db, "inactivo", "hash", None, None)
+            await user_repository.delete_user(db, inactivo.id, updated_by=1)
+
+            page = await user_repository.get_all_users(db, page=1, limit=10)
+
+            assert page["total"] == 1
+            assert [u["id"] for u in page["data"]] == [activo.id]
+
+    run(scenario())
+
+
 def test_get_user_roles_returns_only_active_roles():
     async def scenario():
         async with DbCase() as db:

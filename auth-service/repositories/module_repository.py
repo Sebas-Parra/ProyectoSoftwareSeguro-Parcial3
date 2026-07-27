@@ -6,7 +6,7 @@ from models.role_modules_model import RoleModule
 
 
 async def get_all_modules(db: AsyncSession):
-    result = await db.execute(select(Module))
+    result = await db.execute(select(Module).filter(Module.status == True))
     return result.scalars().all()
 
 
