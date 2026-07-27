@@ -75,6 +75,11 @@ jobs:
         working-directory: sale_service
         run: python -m pytest tests/ -v --cov=. --cov-report=xml:coverage.xml
 
+      - name: Ajustar rutas de cobertura para que SonarCloud las encuentre
+        run: |
+          python scripts/fix_coverage_paths.py auth-service/coverage.xml auth-service
+          python scripts/fix_coverage_paths.py sale_service/coverage.xml sale_service
+
       - name: Subir reportes de cobertura (para SonarCloud)
         uses: actions/upload-artifact@v4
         with:
