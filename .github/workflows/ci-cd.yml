@@ -5,18 +5,26 @@
 #   1. Build y Pruebas Unitarias
 #   2. Analisis Estatico Tradicional (SonarCloud) - exige Quality Gate = OK
 #   3. Analisis SAST Avanzado (modelo ML sobre archivos modificados)
-#   4. Despliegue Automatico (Railway), solo si 2 y 3 pasaron
+#   4. Despliegue Automatico (Render), solo si 2 y 3 pasaron
 #
 # Secrets requeridos en Settings > Secrets and variables > Actions:
-#   TELEGRAM_BOT_TOKEN   - token del bot creado con @BotFather
-#   TELEGRAM_CHAT_ID     - id del grupo/canal de Telegram del equipo
-#   SONAR_TOKEN          - token del proyecto en https://sonarcloud.io
-#   HF_API_TOKEN         - token gratuito de https://huggingface.co/settings/tokens
-#                          (opcional: si falta, la fase 3 se reporta como
-#                          "sin analizar" y NO bloquea el pipeline)
-#   RAILWAY_TOKEN        - project token de Railway (Project Settings > Tokens)
+#   TELEGRAM_BOT_TOKEN     - token del bot creado con @BotFather
+#   TELEGRAM_CHAT_ID       - id del grupo/canal de Telegram del equipo
+#   SONAR_TOKEN            - token del proyecto en https://sonarcloud.io
+#   HF_API_TOKEN           - token gratuito de https://huggingface.co/settings/tokens
+#                            (opcional: si falta, la fase 3 se reporta como
+#                            "sin analizar" y NO bloquea el pipeline)
+#   RENDER_API_KEY         - API key personal de Render (Account Settings > API Keys)
+#   RENDER_AUTH_SERVICE_ID     - service id (srv-xxxx) de auth-service en Render
+#   RENDER_SALE_SERVICE_ID     - service id (srv-xxxx) de sale-service en Render
+#   RENDER_FRONTEND_SERVICE_ID - service id (srv-xxxx) de master-getway en Render
 #
-# Mientras no existan las cuentas de SonarCloud/Railway, este archivo queda
+# IMPORTANTE: en cada servicio de Render hay que desactivar "Auto-Deploy"
+# (Settings > Auto-Deploy > No), para que el UNICO disparador de deploy sea
+# este pipeline (y no el webhook automatico de Render en cada push), tal
+# como exige el PDF.
+#
+# Mientras no existan las cuentas de SonarCloud/Render, este archivo queda
 # igual de valido: las fases fallaran solo cuando ejecuten, con un mensaje
 # claro sobre que secret falta.
 
@@ -186,47 +194,41 @@ jobs:
             -d text="🚨 ALERTA: el modelo de mineria de datos detecto un patron sospechoso de vulnerabilidad en ${{ github.sha }}. Pipeline detenido." || true
 
   deploy:
-    name: "Fase 4: Despliegue Automatico (Railway)"
+    name: "Fase 4: Despliegue Automatico (Render)"
     needs: ml-sast
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Telegram - iniciando despliegue
         run: |
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d text="🛡️ Seguridad validada. Desplegando ${{ github.sha }} a Railway..." || true
+            -d text="🛡️ Seguridad validada. Desplegando ${{ github.sha }} a Render..." || true
 
-      - name: Instalar Railway CLI
-        run: npm install -g @railway/cli
-
-      # TODO (una vez creada la cuenta/proyecto en Railway):
-      #  1. railway login  (una sola vez, local) y `railway link` al proyecto.
-      #  2. Crear 3 servicios en el proyecto de Railway con estos nombres
-      #     exactos (o ajustar los --service de abajo): auth-service,
-      #     sale-service, master-getway.
-      #  3. Guardar el "Project Token" del proyecto como secret RAILWAY_TOKEN.
-      #  4. Configurar en cada servicio de Railway las mismas variables que
-      #     tienen los .env locales (DATABASE_URL, PRIVATE_KEY/PUBLIC_KEY o su
-      #     contenido, REDIS_HOST, etc.) - nunca deben ir hardcodeadas aqui.
+      # scripts/render_deploy.py dispara el deploy via la API de Render y
+      # espera (polling) a que termine, para poder reportar exito/fallo real
+      # (no solo "se disparo"). Requiere que Auto-Deploy este DESACTIVADO en
+      # cada servicio de Render, para que el unico disparador sea este job.
       - name: Deploy auth-service
-        working-directory: auth-service
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway up --service auth-service --detach
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: python scripts/render_deploy.py "${{ secrets.RENDER_AUTH_SERVICE_ID }}"
 
-      - name: Deploy sale_service
-        working-directory: sale_service
+      - name: Deploy sale-service
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway up --service sale-service --detach
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: python scripts/render_deploy.py "${{ secrets.RENDER_SALE_SERVICE_ID }}"
 
       - name: Deploy frontend
-        working-directory: master-getway
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway up --service master-getway --detach
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: python scripts/render_deploy.py "${{ secrets.RENDER_FRONTEND_SERVICE_ID }}"
 
       - name: Telegram - despliegue exitoso
         if: success()
@@ -240,4 +242,4 @@ jobs:
         run: |
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d text="❌ Fallo el despliegue a Railway (${{ github.sha }})." || true
+            -d text="❌ Fallo el despliegue a Render (${{ github.sha }})." || true
