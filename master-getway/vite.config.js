@@ -11,6 +11,11 @@ export default defineConfig({
     }
   },
   plugins: [vue(), tailwindcss()],
+  preview: {
+    // Vite bloquea por defecto cualquier Host que no reconozca; en Render
+    // el dominio (*.onrender.com) no se conoce hasta despues del deploy.
+    allowedHosts: true,
+  },
   test: {
     environment: "jsdom",
     globals: true,
