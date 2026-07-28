@@ -1,0 +1,5 @@
+shared-keys/
+.env
+.env.*
+node_modules/
+.git/

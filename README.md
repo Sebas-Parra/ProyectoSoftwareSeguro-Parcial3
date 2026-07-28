@@ -41,6 +41,12 @@ https://master-getway.onrender.com/login
 
 2. Crea un archivo `.env` en la raíz o en cada servicio con las variables necesarias (ejemplo abajo).
 
+3. Correr el comando para crear las llaves con RSA y guardarlas en `shared-keys/shared-keys-private` y `shared-keys/shared-keys-public`:
+
+```bash
+bash shared-keys/keypair.sh
+```
+
 3. Levanta dependencias de infraestructura (Postgres y Redis):
 
 	docker compose up -d
@@ -66,30 +72,28 @@ https://master-getway.onrender.com/login
 	pnpm install   # o `npm install`
 	pnpm dev       # o `npm run dev`
 ```
-## .env - ejemplo mínimo
- (ajusta credenciales/host/puertos según tu entorno)
+
+# Quickstart (desplegue con docker compose)
+
+1. Clona el repositorio:
+
+	git clone <repo-url>
+	cd ProyectoSoftwareSeguro-Parcial3
+
+2. Clona el archivo `.env.example` en la raíz y renómbralo a `.env`.
+
+3. Correr el comando para crear las llaves con RSA y guardarlas en `shared-keys/shared-keys-private` y `shared-keys/shared-keys-public`:
+
 ```bash
-# Base de Datos
-DATABASE_URL=postgresql://root:root@localhost:5432/master_gateway
-POSTGRES_USER=root
-POSTGRES_PASSWORD=root
-POSTGRES_DB=master_gateway
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_DB=0
-
-# Configuración de Seguridad y JWT
-PRIVATE_KEY=../shared-keys/shared-keys-private/private.pem
-PUBLIC_KEY=../shared-keys/shared-keys-public/public.pem
-ALGORITHM=RS256
-
-# Configuración Regional
-ECUADOR_TZ=America/Guayaquil
-
+bash shared-keys/keypair.sh
 ```
 
+3. Levanta el contendor con todos los servicios (Postgres, Redis, backends y frontend):
+
+```bash
+  docker compose build
+  docker compose up -d
+```
 ## Notas sobre la base de datos
 - El proyecto incluye `docker-compose.yml` que define `db` (Postgres) y `redis` para desarrollo.
 - Al iniciar los backends, el servidor ejecuta la creación de tablas (Base.metadata.create_all) automáticamente.
