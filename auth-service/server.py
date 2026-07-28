@@ -33,7 +33,7 @@ app = FastAPI(lifespan=lifespan)
 origins = [
     "http://localhost:5173", # Puerto por defecto de Vite / Vue
     "http://localhost:3000", # Por si usas otro entorno o puerto local
-    "https://master-getway.onrender.com/login"
+    "https://master-getway.onrender.com"
     # Agrega aquí los dominios de producción si los tienes, ej: "https://tudominio.com"
 ]
 
