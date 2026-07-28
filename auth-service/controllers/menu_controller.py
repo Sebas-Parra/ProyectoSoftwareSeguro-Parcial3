@@ -5,7 +5,10 @@ from fastapi.security import HTTPAuthorizationCredentials
 
 async def get_active_menus_flat_controller(db: AsyncSession, credentials: HTTPAuthorizationCredentials):
     token = credentials.credentials
-    payload, error = await jwt_service.verificar_token_administrador(db, token)
+    # Cualquier usuario autenticado debe poder cargar el menu de SU rol
+    # seleccionado; no solo el administrador (ese era el bug: bloqueaba
+    # a cualquier rol distinto de "administrador").
+    payload, error = await jwt_service.verificar_token(token, "access")
 
     if error:
         raise HTTPException(status_code=401, detail=error)
@@ -96,7 +99,7 @@ async def insert_role_menu_controller(db: AsyncSession, role_id: int, menu_id: i
         raise HTTPException(status_code=401, detail=error)
 
     try:
-        await menu_service.insert_role_menu_service(db, role_id, menu_id)
+        await menu_service.insert_role_menu_service(db, role_id, menu_id, created_by=int(payload['sub']))
         return {"message": "Menú asignado al rol exitosamente"}
     except Exception as e:
         print(f"Error en insert_role_menu_controller: {e}")

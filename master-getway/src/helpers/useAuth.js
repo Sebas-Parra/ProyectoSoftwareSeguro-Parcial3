@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue';
 import authService from '@/services/authService.js';
 import router from '@/router/router.js';
+import { useMenu } from '@/helpers/useMenu.js';
 
 const user = ref(null);
 
@@ -68,7 +69,12 @@ export function useAuth() {
             user.value = null;
             localStorage.removeItem('user');
             localStorage.removeItem('activeRole');
-            
+            localStorage.removeItem('menu');
+
+            const { menu, clearDynamicRoutes } = useMenu();
+            clearDynamicRoutes();
+            menu.value = [];
+
             router.push('/login');
         }
     }

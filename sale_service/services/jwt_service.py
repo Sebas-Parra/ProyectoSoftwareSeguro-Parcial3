@@ -10,11 +10,18 @@ load_dotenv()
 ECUADOR_TZ = ZoneInfo(os.getenv("ECUADOR_TZ", "America/Guayaquil"))  # Zona horaria de Ecuador
 
 
-PUBLIC_KEY_PATH = os.getenv("PUBLIC_KEY")
+def _load_key(env_value: str) -> str:
+    """Acepta el contenido PEM directo (ej. en Railway se pega la llave
+    completa como valor de la variable, ya que los servicios no comparten
+    filesystem) o una ruta a un archivo .pem (desarrollo local, apuntando
+    a shared-keys/)."""
+    if env_value and env_value.strip().startswith("-----BEGIN"):
+        return env_value.replace("\\n", "\n")
+    with open(env_value, "r") as f:
+        return f.read()
 
 
-with open(PUBLIC_KEY_PATH, "rb") as f:
-    PUBLIC_KEY = f.read()
+PUBLIC_KEY = _load_key(os.getenv("PUBLIC_KEY"))
 
 ALGORITHM = os.getenv("ALGORITHM", "RS256")
 

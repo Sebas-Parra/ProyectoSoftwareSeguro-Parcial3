@@ -1,0 +1,20 @@
+# Notifica por Telegram los merges hacia las ramas de integracion (dev/test),
+# tal como lo exige el Anexo del PDF. Usa los mismos secrets TELEGRAM_BOT_TOKEN
+# y TELEGRAM_CHAT_ID que .github/workflows/ci-cd.yml.
+
+name: Notificar Merge a dev/test
+
+on:
+  push:
+    branches: [dev, test]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Telegram - merge exitoso
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d parse_mode="Markdown" \
+            -d text="🔀 Merge exitoso hacia \`${{ github.ref_name }}\` - commit \`${{ github.sha }}\` por ${{ github.actor }}" || true

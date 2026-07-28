@@ -7,3 +7,9 @@ python-dotenv
 pydantic
 PyJWT
 slowapi
+polars
+pytest
+pytest-cov
+httpx
+cryptography
+aiosqlite

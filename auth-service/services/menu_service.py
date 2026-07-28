@@ -81,8 +81,8 @@ async def delete_menu_service(db: AsyncSession, menu_id: int, updated_by: int):
         return None
     return await menu_repository.delete(db, menu, updated_by)
 
-async def insert_role_menu_service(db: AsyncSession, role_id: int, menu_id: int):
-    return await menu_repository.insert_role_menu(db, role_id, menu_id)
+async def insert_role_menu_service(db: AsyncSession, role_id: int, menu_id: int, created_by: int = None):
+    return await menu_repository.insert_role_menu(db, role_id, menu_id, created_by=created_by, updated_by=created_by)
 
 
 

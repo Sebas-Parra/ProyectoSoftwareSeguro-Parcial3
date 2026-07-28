@@ -4,7 +4,7 @@ from models.role_model import Role
 from models.user_roles_model import UserRole
 
 async def get_all_roles(db: AsyncSession):
-    result = await db.execute(select(Role))
+    result = await db.execute(select(Role).filter(Role.status == True))
     return result.scalars().all()
 
 async def insert_role(db: AsyncSession, name: str, description: str, icon: str, created_by: int, updated_by: int):

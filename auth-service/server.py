@@ -33,6 +33,7 @@ app = FastAPI(lifespan=lifespan)
 origins = [
     "http://localhost:5173", # Puerto por defecto de Vite / Vue
     "http://localhost:3000", # Por si usas otro entorno o puerto local
+    "https://master-getway.onrender.com/login"
     # Agrega aquí los dominios de producción si los tienes, ej: "https://tudominio.com"
 ]
 
@@ -54,6 +55,7 @@ app.include_router(routes.user_routes.router)
 app.include_router(routes.role_routes.router)
 app.include_router(routes.module_routes.router)
 app.include_router(routes.menu_route.router)
+app.include_router(routes.internal_routes.router)
 
 # 4. Bloque para ejecutar Uvicorn leyendo el puerto de las variables de entorno
 if __name__ == "__main__":

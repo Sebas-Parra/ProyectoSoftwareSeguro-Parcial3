@@ -16,17 +16,20 @@ load_dotenv()
 
 ECUADOR_TZ = ZoneInfo(os.getenv("ECUADOR_TZ", "America/Guayaquil"))  # Zona horaria de Ecuador
 
-# Cargar rutas desde el .env
-PRIVATE_KEY_PATH = os.getenv("PRIVATE_KEY")
+def _load_key(env_value: str) -> str:
+    """Acepta el contenido PEM directo (ej. en Railway se pega la llave
+    completa como valor de la variable, ya que los servicios no comparten
+    filesystem) o una ruta a un archivo .pem (desarrollo local, apuntando
+    a shared-keys/)."""
+    if env_value and env_value.strip().startswith("-----BEGIN"):
+        return env_value.replace("\\n", "\n")
+    with open(env_value, "r") as f:
+        return f.read()
 
-PUBLIC_KEY_PATH = os.getenv("PUBLIC_KEY")
 
-# Leer el contenido de las llaves
-with open(PRIVATE_KEY_PATH, "r") as f:
-    PRIVATE_KEY = f.read()
-
-with open(PUBLIC_KEY_PATH, "r") as f:
-    PUBLIC_KEY = f.read()
+# PRIVATE_KEY / PUBLIC_KEY: ruta a archivo (local) o contenido PEM directo (cloud)
+PRIVATE_KEY = _load_key(os.getenv("PRIVATE_KEY"))
+PUBLIC_KEY = _load_key(os.getenv("PUBLIC_KEY"))
 
 ALGORITHM = os.getenv("ALGORITHM", "RS256")
 
@@ -49,14 +52,21 @@ async def generar_temptoken(usuario_id: int, username: str):
     
     return temp_token
 
-async def generar_tokens(usuario_id: int, username: str, role: str, role_id: int):
-    """Genera access (15 min) y refresh (7 días) usando firma RSA."""
+async def generar_tokens(usuario_id: int, username: str, role: str, role_id: int, modules: list = None):
+    """Genera access (15 min) y refresh (7 días) usando firma RSA.
+
+    `modules` es la lista de nombres de modulos que el rol seleccionado
+    tiene asignados (ej. ["Ventas"]). Los microservicios hijos la usan para
+    decidir autorizacion (403) sin necesidad de consultar al Master en cada
+    request: es el token, no una llamada extra, el que dice "para que
+    tiene permiso este rol" (Principio de Menor Privilegio, punto 6.2).
+    """
     now = datetime.now(ECUADOR_TZ)
     jti = str(uuid.uuid4())
-
+    modules = modules or []
 
     redis_client.setex(f"refresh_token:{jti}", timedelta(days=7), str(usuario_id))
-    
+
     # Access Token
     access_payload = {
         "sub": str(usuario_id),
@@ -64,11 +74,12 @@ async def generar_tokens(usuario_id: int, username: str, role: str, role_id: int
         "jti": jti,
         "role": role,
         "role_id": role_id,
+        "modules": modules,
         "type": "access",
         "exp": now + timedelta(minutes=15),
         "iat": now
     }
-    
+
     # Refresh Token
     refresh_payload = {
         "sub": str(usuario_id),
@@ -76,6 +87,7 @@ async def generar_tokens(usuario_id: int, username: str, role: str, role_id: int
         "jti": jti,
         "role": role,
         "role_id": role_id,
+        "modules": modules,
         "type": "refresh",
         "exp": now + timedelta(days=7),
         "iat": now
@@ -102,8 +114,11 @@ async def validar_refresh_token(token_refresh):
         return None, "Token ya utilizado o revocado"
     
     redis_client.delete(f"refresh_token:{jti}")
-    
-    return await generar_tokens(int(payload["sub"]), payload["username"], payload["role"], payload["role_id"]), None
+
+    return await generar_tokens(
+        int(payload["sub"]), payload["username"], payload["role"], payload["role_id"],
+        modules=payload.get("modules", []),
+    ), None
 
 async def delete_tokens(jti):
     """Elimina un refresh token de Redis."""
